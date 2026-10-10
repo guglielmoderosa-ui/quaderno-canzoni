@@ -18,6 +18,8 @@
     btnElimina: $('btn-elimina'),
     dTitolo: $('dettaglio-titolo'),
     dAccordi: $('dettaglio-accordi'),
+    btnAccordiMeno: $('btn-accordi-meno'),
+    btnAccordiPiu: $('btn-accordi-piu'),
     dTesto: $('dettaglio-testo'),
     formTitolo: $('form-titolo'),
     form: $('form-canzone'),
@@ -190,12 +192,115 @@
     if (!c) { vaiElenco(); return; }
     correnteId = id;
     el.dTitolo.textContent = c.titolo;
-    el.dAccordi.textContent = c.accordi;
+    renderAccordi(c.accordi);
     el.dTesto.textContent = c.testo;
     el.dAccordi.parentElement.hidden = !c.accordi.trim();
     el.dTesto.parentElement.hidden = !c.testo.trim();
     mostra('dettaglio');
+    adattaAccordi();
   }
+
+  // ---------- Impaginazione accordi ----------
+  const CHIAVE_SCALA = 'quaderno-canzoni-scala-accordi';
+  const BASE_ACCORDI = 16;   // px: dimensione massima di partenza
+  const MIN_ACCORDI = 9;     // px: sotto questa soglia si scorre in orizzontale
+  const SCALA_MIN = 0.5;
+  const SCALA_MAX = 2;
+  const SCALA_PASSO = 0.1;
+
+  const RADICE = '(?:[Dd]o|[Rr]e|[Mm]i|[Ff]a|[Ss]ol|[Ll]a|[Ss]i|[A-G])[#b♯♭]?';
+  const QUALITA = '(?:maj|min|dim|aug|sus|add|m|M|°|ø|\\+|-|\\d{1,2}|[#b♯♭]\\d{1,2}|\\([^()\\s]*\\))*';
+  const RE_ACCORDO = new RegExp(`^${RADICE}${QUALITA}(?:/${RADICE})?$`);
+  const RE_SEPARATORE = /^(?:[|/\-:%.]+|\(?x\d+\)?|\d+x)$/i;
+
+  // Una riga è "solo accordi" se ogni parola è un accordo o un separatore (e c'è almeno un accordo).
+  function eRigaAccordi(riga) {
+    const parole = riga.split(/\s+/).filter(Boolean);
+    let accordi = 0;
+    for (const p of parole) {
+      if (RE_SEPARATORE.test(p)) continue;
+      let t = p.replace(/^[|:]+|[|:]+$/g, '');
+      // Parentesi attorno all'accordo, anche se aperte e chiuse su parole diverse: "(C G)".
+      if (t.startsWith('(') && !t.includes(')')) t = t.slice(1);
+      else if (t.endsWith(')') && !t.includes('(')) t = t.slice(0, -1);
+      else if (t.startsWith('(') && t.endsWith(')')) t = t.slice(1, -1);
+      if (!RE_ACCORDO.test(t)) return false;
+      accordi++;
+    }
+    return accordi > 0;
+  }
+
+  let scalaAccordi = 1;
+
+  function caricaScala() {
+    try {
+      const v = parseFloat(localStorage.getItem(CHIAVE_SCALA));
+      if (Number.isFinite(v)) return Math.min(SCALA_MAX, Math.max(SCALA_MIN, v));
+    } catch (_) { /* localStorage non disponibile */ }
+    return 1;
+  }
+
+  function salvaScala() {
+    try {
+      localStorage.setItem(CHIAVE_SCALA, String(scalaAccordi));
+    } catch (_) { /* quota piena o storage bloccato: la scala resta solo in memoria */ }
+  }
+
+  // Un <span> per riga, separati da "\n" reali: lo spazio bianco resta identico all'originale.
+  function renderAccordi(testo) {
+    const frag = document.createDocumentFragment();
+    testo.split(/\r?\n/).forEach((riga, i) => {
+      if (i > 0) frag.appendChild(document.createTextNode('\n'));
+      const s = document.createElement('span');
+      s.className = eRigaAccordi(riga) ? 'riga-accordi' : 'riga-testo';
+      s.textContent = riga;
+      frag.appendChild(s);
+    });
+    el.dAccordi.replaceChildren(frag);
+  }
+
+  function adattaAccordi() {
+    const pre = el.dAccordi;
+    if (pre.clientWidth === 0) return; // blocco nascosto: niente da misurare
+    const cs = getComputedStyle(pre);
+    const pad = parseFloat(cs.paddingLeft) + parseFloat(cs.paddingRight);
+    pre.style.fontSize = BASE_ACCORDI + 'px';
+    const necessaria = pre.scrollWidth - pad;
+    const disponibile = pre.clientWidth - pad;
+    let px = BASE_ACCORDI;
+    if (necessaria > disponibile && necessaria > 0) {
+      px = Math.max(MIN_ACCORDI, Math.floor(BASE_ACCORDI * disponibile / necessaria * 10) / 10);
+      // Il testo non scala in modo perfettamente lineare: si rifinisce finché entra.
+      for (let n = 0; n < 8 && px > MIN_ACCORDI; n++) {
+        pre.style.fontSize = px + 'px';
+        if (pre.scrollWidth <= pre.clientWidth) break;
+        px = Math.max(MIN_ACCORDI, Math.floor(px * 97) / 100);
+      }
+    }
+    pre.style.fontSize = (px * scalaAccordi).toFixed(2) + 'px';
+    el.btnAccordiMeno.disabled = scalaAccordi <= SCALA_MIN + 1e-6;
+    el.btnAccordiPiu.disabled = scalaAccordi >= SCALA_MAX - 1e-6;
+  }
+
+  function cambiaScala(delta) {
+    const nuova = Math.round((scalaAccordi + delta) * 100) / 100;
+    scalaAccordi = Math.min(SCALA_MAX, Math.max(SCALA_MIN, nuova));
+    salvaScala();
+    adattaAccordi();
+  }
+
+  el.btnAccordiMeno.addEventListener('click', () => cambiaScala(-SCALA_PASSO));
+  el.btnAccordiPiu.addEventListener('click', () => cambiaScala(SCALA_PASSO));
+
+  let rafAccordi = 0;
+  const ridimensiona = () => {
+    cancelAnimationFrame(rafAccordi);
+    rafAccordi = requestAnimationFrame(() => { if (vistaAttiva === 'dettaglio') adattaAccordi(); });
+  };
+  window.addEventListener('resize', ridimensiona);
+  window.addEventListener('orientationchange', ridimensiona);
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(ridimensiona);
+  scalaAccordi = caricaScala();
 
   // ---------- Form ----------
   function vaiForm(id) {

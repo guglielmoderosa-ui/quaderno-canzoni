@@ -38,7 +38,13 @@
       <article class="dettaglio">
         <h2 id="dettaglio-titolo" class="dettaglio-titolo"></h2>
         <div class="dettaglio-blocco">
-          <h3 class="etichetta">Accordi</h3>
+          <div class="accordi-intestazione">
+            <h3 class="etichetta">Accordi</h3>
+            <div class="accordi-scala" role="group" aria-label="Dimensione carattere accordi">
+              <button type="button" id="btn-accordi-meno" class="btn btn-ghost btn-scala" aria-label="Riduci carattere accordi">A&minus;</button>
+              <button type="button" id="btn-accordi-piu" class="btn btn-ghost btn-scala" aria-label="Ingrandisci carattere accordi">A+</button>
+            </div>
+          </div>
           <pre id="dettaglio-accordi" class="accordi"></pre>
         </div>
         <div class="dettaglio-blocco">
