@@ -342,13 +342,22 @@ pre.accordi {
 
 .accordi-intestazione {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
   gap: 8px;
   margin-bottom: 8px;
 }
 .accordi-intestazione .etichetta { margin: 0; }
-.accordi-scala { display: flex; gap: 4px; }
+.accordi-scala,
+.accordi-tono { display: flex; align-items: center; gap: 4px; }
+.accordi-tono { margin-left: auto; }
+.tono-valore {
+  min-width: 2.5ch;
+  text-align: center;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
 .btn-scala {
   min-width: var(--tocco);
   min-height: var(--tocco);
