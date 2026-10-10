@@ -91,5 +91,22 @@
       </form>
     </section>
   </main>
+  <input type="file" id="file-importa" accept=".json,application/json" hidden>
+
+  <dialog id="dlg-duplicato" class="dialogo" aria-labelledby="dlg-duplicato-intro">
+    <div class="dialogo-corpo">
+      <h2 id="dlg-duplicato-intro" class="dialogo-titolo">Canzone già presente</h2>
+      <p class="dialogo-testo">Esiste già una canzone intitolata <strong id="dlg-duplicato-titolo"></strong>. Cosa vuoi fare?</p>
+      <label class="dialogo-check">
+        <input type="checkbox" id="dlg-duplicato-tutti">
+        <span>Applica a tutti i duplicati rimanenti</span>
+      </label>
+      <div class="dialogo-azioni">
+        <button type="button" class="btn btn-primary" data-scelta="sostituisci">Sostituisci</button>
+        <button type="button" class="btn btn-secondary" data-scelta="entrambe">Tieni entrambe</button>
+        <button type="button" class="btn btn-ghost" data-scelta="salta">Salta</button>
+      </div>
+    </div>
+  </dialog>
 </body>
 </html>
