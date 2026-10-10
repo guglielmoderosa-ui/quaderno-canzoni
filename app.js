@@ -80,6 +80,7 @@
 
   // ---------- Viste ----------
   function mostra(nome) {
+    fermaScorrimento();
     vistaAttiva = nome;
     el.vistaElenco.hidden = nome !== 'elenco';
     el.vistaDettaglio.hidden = nome !== 'dettaglio';
@@ -295,6 +296,113 @@
     }
     // In modalità form non si interviene per non perdere ciò che l'utente sta scrivendo.
   });
+
+  // ---------- Auto-scroll ----------
+  const CHIAVE_VEL = 'quaderno-canzoni-velocita';
+  const VEL_MIN = 1;
+  const VEL_MAX = 10;
+  const VEL_PX_S = [0, 8, 14, 22, 32, 44, 58, 76, 98, 124, 155]; // px/s per livello (indice = livello)
+  const barraScorr = $('barra-scorrimento');
+  const btnScorri = $('btn-scorri');
+  const btnVelMeno = $('btn-vel-meno');
+  const btnVelPiu = $('btn-vel-piu');
+  const velIndicatore = $('vel-indicatore');
+
+  let velocita = caricaVelocita();
+  let scorrendo = false;
+  let rafId = 0;
+  let ultimoT = 0;
+  let accumulo = 0; // frazione di pixel non ancora applicata
+  let wakeLock = null;
+
+  function caricaVelocita() {
+    try {
+      const v = parseInt(localStorage.getItem(CHIAVE_VEL), 10);
+      if (v >= VEL_MIN && v <= VEL_MAX) return v;
+    } catch (_) { /* usa il default */ }
+    return 3;
+  }
+
+  function aggiornaControlliScorr() {
+    velIndicatore.textContent = `Velocità ${velocita}`;
+    btnVelMeno.disabled = velocita <= VEL_MIN;
+    btnVelPiu.disabled = velocita >= VEL_MAX;
+    btnScorri.textContent = scorrendo ? '❚❚' : '▶';
+    btnScorri.setAttribute('aria-label', scorrendo ? 'Ferma scorrimento' : 'Avvia scorrimento');
+  }
+
+  function cambiaVelocita(delta) {
+    velocita = Math.min(VEL_MAX, Math.max(VEL_MIN, velocita + delta));
+    try { localStorage.setItem(CHIAVE_VEL, String(velocita)); } catch (_) { /* ignora */ }
+    aggiornaControlliScorr();
+  }
+
+  const infondoPagina = () =>
+    window.scrollY + window.innerHeight >= document.documentElement.scrollHeight - 1;
+
+  function passoScorrimento(t) {
+    if (!scorrendo) return;
+    const dt = Math.min((t - ultimoT) / 1000, 0.1); // limita i salti dopo pause del thread
+    ultimoT = t;
+    accumulo += VEL_PX_S[velocita] * dt;
+    const px = Math.floor(accumulo);
+    if (px >= 1) {
+      accumulo -= px;
+      window.scrollBy(0, px);
+    }
+    if (infondoPagina()) { fermaScorrimento(); return; }
+    rafId = requestAnimationFrame(passoScorrimento);
+  }
+
+  async function richiediWakeLock() {
+    try {
+      if ('wakeLock' in navigator) wakeLock = await navigator.wakeLock.request('screen');
+    } catch (_) { wakeLock = null; }
+    if (!scorrendo) rilasciaWakeLock(); // fermato mentre la richiesta era in corso
+  }
+
+  function rilasciaWakeLock() {
+    const w = wakeLock;
+    wakeLock = null;
+    if (w) w.release().catch(() => {});
+  }
+
+  function avviaScorrimento() {
+    if (scorrendo) return;
+    if (infondoPagina()) window.scrollTo(0, 0);
+    scorrendo = true;
+    accumulo = 0;
+    ultimoT = performance.now();
+    aggiornaControlliScorr();
+    richiediWakeLock();
+    rafId = requestAnimationFrame(passoScorrimento);
+  }
+
+  function fermaScorrimento() {
+    if (!scorrendo) return;
+    scorrendo = false;
+    cancelAnimationFrame(rafId);
+    rilasciaWakeLock();
+    aggiornaControlliScorr();
+  }
+
+  // Un tocco/rotella/tasto di scorrimento fuori dalla barra interrompe lo scorrimento.
+  function fermaSeFuoriBarra(e) {
+    if (scorrendo && !barraScorr.contains(e.target)) fermaScorrimento();
+  }
+  const CHIAVI_SCORRIMENTO = new Set([' ', 'ArrowUp', 'ArrowDown', 'PageUp', 'PageDown', 'Home', 'End']);
+
+  btnScorri.addEventListener('click', () => (scorrendo ? fermaScorrimento() : avviaScorrimento()));
+  btnVelMeno.addEventListener('click', () => cambiaVelocita(-1));
+  btnVelPiu.addEventListener('click', () => cambiaVelocita(1));
+  document.addEventListener('touchstart', fermaSeFuoriBarra, { passive: true });
+  document.addEventListener('pointerdown', fermaSeFuoriBarra, { passive: true });
+  document.addEventListener('wheel', fermaSeFuoriBarra, { passive: true });
+  document.addEventListener('keydown', (e) => {
+    if (CHIAVI_SCORRIMENTO.has(e.key)) fermaSeFuoriBarra(e);
+  }, { passive: true });
+  document.addEventListener('visibilitychange', () => { if (document.hidden) fermaScorrimento(); });
+  aggiornaControlliScorr();
 
   // ---------- Avvio ----------
   canzoni = carica();
