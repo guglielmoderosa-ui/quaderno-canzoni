@@ -44,6 +44,12 @@
               <button type="button" id="btn-accordi-meno" class="btn btn-ghost btn-scala" aria-label="Riduci carattere accordi">A&minus;</button>
               <button type="button" id="btn-accordi-piu" class="btn btn-ghost btn-scala" aria-label="Ingrandisci carattere accordi">A+</button>
             </div>
+            <div class="accordi-tono" role="group" aria-label="Tonalità accordi">
+              <button type="button" id="btn-tono-meno" class="btn btn-ghost btn-scala" aria-label="Abbassa di un semitono">Tono &minus;</button>
+              <span id="tono-valore" class="tono-valore" aria-live="polite">0</span>
+              <button type="button" id="btn-tono-piu" class="btn btn-ghost btn-scala" aria-label="Alza di un semitono">Tono +</button>
+              <button type="button" id="btn-tono-originale" class="btn btn-ghost btn-scala" aria-label="Torna al tono originale" disabled>Originale</button>
+            </div>
           </div>
           <pre id="dettaglio-accordi" class="accordi"></pre>
         </div>

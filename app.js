@@ -20,6 +20,10 @@
     dAccordi: $('dettaglio-accordi'),
     btnAccordiMeno: $('btn-accordi-meno'),
     btnAccordiPiu: $('btn-accordi-piu'),
+    btnTonoMeno: $('btn-tono-meno'),
+    btnTonoPiu: $('btn-tono-piu'),
+    tonoValore: $('tono-valore'),
+    btnTonoOriginale: $('btn-tono-originale'),
     dTesto: $('dettaglio-testo'),
     formTitolo: $('form-titolo'),
     form: $('form-canzone'),
@@ -192,6 +196,7 @@
     if (!c) { vaiElenco(); return; }
     correnteId = id;
     el.dTitolo.textContent = c.titolo;
+    caricaTono(id);
     renderAccordi(c.accordi);
     el.dTesto.textContent = c.testo;
     el.dAccordi.parentElement.hidden = !c.accordi.trim();
@@ -199,6 +204,127 @@
     mostra('dettaglio');
     adattaAccordi();
   }
+
+  // ---------- Tonalità ----------
+  // La trasposizione è solo visiva: il testo salvato non viene mai modificato.
+  const CHIAVE_TONO = 'quaderno-canzoni-tono';
+  const TONO_MAX = 6;
+
+  // Radici italiane in qualsiasi maiuscola/minuscola o inglesi A–G, con alterazione facoltativa.
+  const T_RADICE = '((?:[Dd][Oo]|[Rr][Ee]|[Mm][Ii]|[Ff][Aa]|[Ss][Oo][Ll]|[Ll][Aa]|[Ss][Ii]|[A-G]))([#b♯♭]?)';
+  const T_QUALITA = /^(?:maj|min|dim|aug|sus|add|m|M|°|ø|\+|-|\d{1,2}|[#b♯♭]\d{1,2}|\([^()\s]*\))*$/;
+  const T_PREFISSO = /^[(|:]*/;
+  const T_SUFFISSO = /[)|:]*$/;
+  const T_BASSO = new RegExp(`^${T_RADICE}([^A-Za-z]*)$`);
+  const T_ACCORDO = new RegExp(`^${T_RADICE}(.*)$`);
+
+  const T_SEMITONI = { do: 0, re: 2, mi: 4, fa: 5, sol: 7, la: 9, si: 11, c: 0, d: 2, e: 4, f: 5, g: 7, a: 9, b: 11 };
+  const T_DIESIS = ['DO', 'DO#', 'RE', 'RE#', 'MI', 'FA', 'FA#', 'SOL', 'SOL#', 'LA', 'LA#', 'SI'];
+  const T_BEMOLLE = ['DO', 'REb', 'RE', 'MIb', 'MI', 'FA', 'SOLb', 'SOL', 'LAb', 'LA', 'SIb', 'SI'];
+  // Note naturali spostate su un tasto nero: grafia comune DO# MIb FA# LAb SIb, in ogni direzione.
+  const T_COMUNE = ['DO', 'DO#', 'RE', 'MIb', 'MI', 'FA', 'FA#', 'SOL', 'LAb', 'LA', 'SIb', 'SI'];
+  const T_ANGLO = { DO: 'C', RE: 'D', MI: 'E', FA: 'F', SOL: 'G', LA: 'A', SI: 'B' };
+
+  // Sposta una radice ("Sol", "Bb", "FA#", ...) di n semitoni mantenendo notazione, maiuscole e stile dell'alterazione.
+  function trasponiNota(nome, alt, n) {
+    const italiana = nome.length > 1;
+    const base = T_SEMITONI[nome.toLowerCase()];
+    const delta = alt === '#' || alt === '♯' ? 1 : alt === 'b' || alt === '♭' ? -1 : 0;
+    const pc = (((base + delta + n) % 12) + 12) % 12;
+    const tabella = delta > 0 ? T_DIESIS : delta < 0 ? T_BEMOLLE : T_COMUNE;
+    const m = /^([A-Z]+)([#b])?$/.exec(tabella[pc]);
+    const r = m[1];
+    let acc = '';
+    if (m[2]) acc = m[2] === '#' ? (alt === '♯' ? '♯' : '#') : (alt === '♭' ? '♭' : 'b');
+    if (!italiana) return T_ANGLO[r] + acc;
+    if (nome === nome.toUpperCase()) return r + acc;
+    const tit = r[0] + r.slice(1).toLowerCase();
+    return (nome[0] === nome[0].toUpperCase() ? tit : tit.toLowerCase()) + acc;
+  }
+
+  // Trasporta una parola; se non è un accordo la restituisce identica.
+  function trasponiAccordo(parola, n) {
+    const pre = T_PREFISSO.exec(parola)[0];
+    const resto = parola.slice(pre.length);
+    const chiusure = T_SUFFISSO.exec(resto)[0].length;
+    // Si prova dal suffisso più corto: "C7(b9)" resta intero, "(C)" perde la parentesi finale.
+    for (let k = 0; k <= chiusure; k++) {
+      const corpo = resto.slice(0, resto.length - k);
+      const m = T_ACCORDO.exec(corpo);
+      if (!m) continue;
+      let qual = m[3];
+      let basso = '';
+      const sl = qual.lastIndexOf('/');
+      if (sl >= 0) {
+        const mb = T_BASSO.exec(qual.slice(sl + 1));
+        if (!mb) continue;
+        basso = '/' + trasponiNota(mb[1], mb[2], n) + mb[3];
+        qual = qual.slice(0, sl);
+      }
+      if (!T_QUALITA.test(qual)) continue;
+      return pre + trasponiNota(m[1], m[2], n) + qual + basso + resto.slice(corpo.length);
+    }
+    return parola;
+  }
+
+  // Ogni accordo torna alla colonna originale (sillaba sotto cui sta); se uno cresce e arriva
+  // a toccare il successivo, questo scivola subito dopo con un solo spazio.
+  function trasponiRiga(riga, n) {
+    let out = '';
+    const re = /\S+/g;
+    let m;
+    while ((m = re.exec(riga))) {
+      if (out && out.length >= m.index) out += ' ';
+      out = out.padEnd(m.index, ' ') + trasponiAccordo(m[0], n);
+    }
+    return out;
+  }
+
+  let tono = 0;
+
+  function leggiTonoSalvati() {
+    try {
+      const o = JSON.parse(localStorage.getItem(CHIAVE_TONO));
+      if (o && typeof o === 'object' && !Array.isArray(o)) return o;
+    } catch (_) { /* localStorage non disponibile o JSON non valido */ }
+    return {};
+  }
+
+  function salvaTono(id, valore) {
+    const o = leggiTonoSalvati();
+    if (valore) o[id] = valore; else delete o[id];
+    try {
+      localStorage.setItem(CHIAVE_TONO, JSON.stringify(o));
+    } catch (_) { /* quota piena o storage bloccato: il tono resta solo in memoria */ }
+  }
+
+  function aggiornaTonoUI() {
+    el.tonoValore.textContent = tono > 0 ? '+' + tono : tono < 0 ? '−' + (-tono) : '0';
+    el.btnTonoMeno.disabled = tono <= -TONO_MAX;
+    el.btnTonoPiu.disabled = tono >= TONO_MAX;
+    el.btnTonoOriginale.disabled = tono === 0;
+  }
+
+  // Applica alla canzone aperta il tono memorizzato (0 se assente o non valido).
+  function caricaTono(id) {
+    const v = Number(leggiTonoSalvati()[id]);
+    tono = Number.isInteger(v) ? Math.max(-TONO_MAX, Math.min(TONO_MAX, v)) : 0;
+    aggiornaTonoUI();
+  }
+
+  function impostaTono(valore) {
+    const c = trovata(correnteId);
+    if (!c) return;
+    tono = Math.max(-TONO_MAX, Math.min(TONO_MAX, valore));
+    salvaTono(c.id, tono);
+    aggiornaTonoUI();
+    renderAccordi(c.accordi);
+    adattaAccordi();
+  }
+
+  el.btnTonoMeno.addEventListener('click', () => impostaTono(tono - 1));
+  el.btnTonoPiu.addEventListener('click', () => impostaTono(tono + 1));
+  el.btnTonoOriginale.addEventListener('click', () => impostaTono(0));
 
   // ---------- Impaginazione accordi ----------
   const CHIAVE_SCALA = 'quaderno-canzoni-scala-accordi';
@@ -256,8 +382,9 @@
     testo.split(/\r?\n/).forEach((riga, i) => {
       if (i > 0) frag.appendChild(document.createTextNode('\n'));
       const s = document.createElement('span');
-      s.className = eRigaAccordi(riga) ? 'riga-accordi' : 'riga-testo';
-      s.textContent = riga;
+      const soloAccordi = eRigaAccordi(riga);
+      s.className = soloAccordi ? 'riga-accordi' : 'riga-testo';
+      s.textContent = soloAccordi && tono ? trasponiRiga(riga, tono) : riga;
       frag.appendChild(s);
     });
     el.dAccordi.replaceChildren(frag);
@@ -394,6 +521,7 @@
     if (!c) { vaiElenco(); return; }
     if (!confirm(`Eliminare la canzone “${c.titolo}”?`)) return;
     canzoni = canzoni.filter((x) => x.id !== c.id);
+    salvaTono(c.id, 0);
     salva();
     vaiElenco();
   }
