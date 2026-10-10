@@ -203,13 +203,16 @@
   // ---------- Impaginazione accordi ----------
   const CHIAVE_SCALA = 'quaderno-canzoni-scala-accordi';
   const BASE_ACCORDI = 16;   // px: dimensione massima di partenza
-  const MIN_ACCORDI = 9;     // px: sotto questa soglia si scorre in orizzontale
+  const MIN_ACCORDI = 7;     // px: sotto questa soglia si scorre in orizzontale
   const SCALA_MIN = 0.5;
   const SCALA_MAX = 2;
   const SCALA_PASSO = 0.1;
 
-  const RADICE = '(?:[Dd]o|[Rr]e|[Mm]i|[Ff]a|[Ss]ol|[Ll]a|[Ss]i|[A-G])[#b♯♭]?';
-  const QUALITA = '(?:maj|min|dim|aug|sus|add|m|M|°|ø|\\+|-|\\d{1,2}|[#b♯♭]\\d{1,2}|\\([^()\\s]*\\))*';
+  // Parola in qualunque combinazione di maiuscole/minuscole ("sol" -> "[Ss][Oo][Ll]"), senza il flag /i
+  // che farebbe passare anche le note anglosassoni minuscole ("a", "e") delle parole comuni.
+  const ogniCaso = (p) => p.replace(/[a-z]/gi, (c) => `[${c.toUpperCase()}${c.toLowerCase()}]`);
+  const RADICE = `(?:${['sol', 'do', 're', 'mi', 'fa', 'la', 'si'].map(ogniCaso).join('|')}|[A-G])[#b♯♭]?`;
+  const QUALITA = `(?:${['maj', 'min', 'dim', 'aug', 'sus', 'add', 'm'].map(ogniCaso).join('|')}|°|ø|\\+|-|\\d{1,2}|[#b♯♭]\\d{1,2}|\\([^()\\s]*\\))*`;
   const RE_ACCORDO = new RegExp(`^${RADICE}${QUALITA}(?:/${RADICE})?$`);
   const RE_SEPARATORE = /^(?:[|/\-:%.]+|\(?x\d+\)?|\d+x)$/i;
 
@@ -231,6 +234,7 @@
   }
 
   let scalaAccordi = 1;
+  let ultimaLarghezzaAccordi = -1;
 
   function caricaScala() {
     try {
@@ -259,25 +263,34 @@
     el.dAccordi.replaceChildren(frag);
   }
 
+  // Larghezza naturale (senza a capo) della riga più larga, misurata sugli span reali.
+  function larghezzaMassima(pre) {
+    let max = 0;
+    for (const s of pre.children) max = Math.max(max, s.getBoundingClientRect().width);
+    return max;
+  }
+
   function adattaAccordi() {
     const pre = el.dAccordi;
     if (pre.clientWidth === 0) return; // blocco nascosto: niente da misurare
     const cs = getComputedStyle(pre);
     const pad = parseFloat(cs.paddingLeft) + parseFloat(cs.paddingRight);
+    // Un po' di margine: Safari iOS arrotonda le larghezze in modo diverso da Chrome.
+    const disponibile = Math.floor(pre.clientWidth - pad) * 0.985 - 1;
     pre.style.fontSize = BASE_ACCORDI + 'px';
-    const necessaria = pre.scrollWidth - pad;
-    const disponibile = pre.clientWidth - pad;
     let px = BASE_ACCORDI;
+    const necessaria = larghezzaMassima(pre);
     if (necessaria > disponibile && necessaria > 0) {
       px = Math.max(MIN_ACCORDI, Math.floor(BASE_ACCORDI * disponibile / necessaria * 10) / 10);
       // Il testo non scala in modo perfettamente lineare: si rifinisce finché entra.
-      for (let n = 0; n < 8 && px > MIN_ACCORDI; n++) {
+      for (let n = 0; n < 12 && px > MIN_ACCORDI; n++) {
         pre.style.fontSize = px + 'px';
-        if (pre.scrollWidth <= pre.clientWidth) break;
+        if (larghezzaMassima(pre) <= disponibile) break;
         px = Math.max(MIN_ACCORDI, Math.floor(px * 97) / 100);
       }
     }
     pre.style.fontSize = (px * scalaAccordi).toFixed(2) + 'px';
+    ultimaLarghezzaAccordi = pre.clientWidth;
     el.btnAccordiMeno.disabled = scalaAccordi <= SCALA_MIN + 1e-6;
     el.btnAccordiPiu.disabled = scalaAccordi >= SCALA_MAX - 1e-6;
   }
@@ -297,9 +310,26 @@
     cancelAnimationFrame(rafAccordi);
     rafAccordi = requestAnimationFrame(() => { if (vistaAttiva === 'dettaglio') adattaAccordi(); });
   };
+  // Su iOS "orientationchange" arriva prima che le dimensioni siano aggiornate: si rimisura più volte.
+  const dopoRotazione = () => {
+    ridimensiona();
+    [150, 400, 800].forEach((ms) => setTimeout(ridimensiona, ms));
+  };
   window.addEventListener('resize', ridimensiona);
-  window.addEventListener('orientationchange', ridimensiona);
-  if (document.fonts && document.fonts.ready) document.fonts.ready.then(ridimensiona);
+  window.addEventListener('orientationchange', dopoRotazione);
+  window.addEventListener('pageshow', ridimensiona);
+  if (window.visualViewport) window.visualViewport.addEventListener('resize', ridimensiona);
+  if (document.fonts) {
+    if (document.fonts.ready) document.fonts.ready.then(ridimensiona);
+    if (document.fonts.addEventListener) document.fonts.addEventListener('loadingdone', ridimensiona);
+  }
+  if (window.ResizeObserver) {
+    const osservatore = new ResizeObserver(() => {
+      if (el.dAccordi.clientWidth !== ultimaLarghezzaAccordi) ridimensiona();
+    });
+    osservatore.observe(el.dAccordi);
+    osservatore.observe(el.vistaDettaglio);
+  }
   scalaAccordi = caricaScala();
 
   // ---------- Form ----------

@@ -66,6 +66,8 @@ body {
   font-family: var(--font-testo);
   font-size: 16px;
   line-height: 1.5;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
   overflow-x: hidden;
   padding-left: env(safe-area-inset-left);
   padding-right: env(safe-area-inset-right);
@@ -330,7 +332,7 @@ pre.accordi {
   white-space: pre;
   overflow-wrap: normal;
   word-break: normal;
-  overflow-x: auto;
+  overflow-x: auto; /* mai tagliare in silenzio: se non entra, si scorre di lato */
   background: var(--accordi-bg);
   border-left: 3px solid var(--accento);
   border-radius: 0 var(--raggio) var(--raggio) 0;
