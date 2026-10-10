@@ -191,6 +191,8 @@
     el.dTitolo.textContent = c.titolo;
     el.dAccordi.textContent = c.accordi;
     el.dTesto.textContent = c.testo;
+    el.dAccordi.parentElement.hidden = !c.accordi.trim();
+    el.dTesto.parentElement.hidden = !c.testo.trim();
     mostra('dettaglio');
   }
 
