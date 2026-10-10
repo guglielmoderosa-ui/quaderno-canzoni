@@ -21,7 +21,13 @@
       <div class="search-bar">
         <input id="cerca" type="search" placeholder="Cerca per titolo, testo o accordi…" aria-label="Cerca canzoni">
       </div>
-      <p id="conteggio" class="conteggio" aria-live="polite"></p>
+      <div class="elenco-azioni">
+        <p id="conteggio" class="conteggio" aria-live="polite"></p>
+        <div class="elenco-azioni-pulsanti" role="group" aria-label="Backup canzoni">
+          <button id="btn-importa" class="btn btn-ghost btn-piccolo" type="button">Importa</button>
+          <button id="btn-esporta" class="btn btn-ghost btn-piccolo" type="button">Esporta</button>
+        </div>
+      </div>
       <ul id="lista-canzoni" class="lista-canzoni"></ul>
       <p id="vuoto" class="vuoto" hidden>Nessuna canzone. Tocca “+ Nuova” per iniziare.</p>
     </section>

@@ -171,6 +171,19 @@ body {
 /* ---------- Ricerca ---------- */
 .search-bar { margin-bottom: 8px; }
 
+/* Riga sotto la ricerca: conteggio a sinistra, Importa/Esporta a destra */
+.elenco-azioni {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 8px;
+}
+.elenco-azioni .conteggio { margin: 0; }
+.elenco-azioni-pulsanti { display: flex; gap: 8px; margin-left: auto; }
+.btn-piccolo { padding: 6px 12px; font-size: 0.95rem; }
+
 input[type="search"],
 input[type="text"],
 textarea {
