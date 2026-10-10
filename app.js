@@ -33,6 +33,11 @@
     campoTesto: $('campo-testo'),
     errore: $('form-errore'),
     btnAnnulla: $('btn-annulla'),
+    btnImporta: $('btn-importa'),
+    fileImporta: $('file-importa'),
+    dlgDuplicato: $('dlg-duplicato'),
+    dlgTitolo: $('dlg-duplicato-titolo'),
+    dlgTutti: $('dlg-duplicato-tutti'),
   };
 
   let canzoni = [];
@@ -558,6 +563,135 @@
       else vaiElenco();
     }
     // In modalità form non si interviene per non perdere ciò che l'utente sta scrivendo.
+  });
+
+  // ---------- Importa ----------
+  const plurale = (n, uno, molti) => `${n} ${n === 1 ? uno : molti}`;
+
+  // Estrae le canzoni valide da quanto letto dal file JSON.
+  // Restituisce null se il file non è riconoscibile come Quaderno Canzoni.
+  function leggiCanzoniDaFile(dati) {
+    let lista;
+    if (Array.isArray(dati)) lista = dati;
+    else if (dati && typeof dati === 'object' && dati.app === 'quaderno-canzoni' && Array.isArray(dati.canzoni)) lista = dati.canzoni;
+    else return null;
+    const stringa = (v) => (typeof v === 'string' ? v : '');
+    const tempo = (v) => (typeof v === 'number' && Number.isFinite(v) && v > 0 ? v : null);
+    return lista
+      .filter((c) => c && typeof c === 'object' && typeof c.titolo === 'string' && c.titolo.trim() !== '')
+      .map((c) => ({
+        titolo: c.titolo,
+        accordi: stringa(c.accordi),
+        testo: stringa(c.testo),
+        tono: Number.isInteger(c.tono) ? Math.max(-TONO_MAX, Math.min(TONO_MAX, c.tono)) : 0,
+        creata: tempo(c.creata),
+        modificata: tempo(c.modificata),
+      }));
+  }
+
+  // Mostra il dialogo del duplicato; risolve con { scelta, tutti }.
+  // Esc (o qualunque chiusura senza scelta) vale "salta" solo per questa canzone.
+  function chiediDuplicato(titolo) {
+    return new Promise((resolve) => {
+      const dlg = el.dlgDuplicato;
+      el.dlgTitolo.textContent = titolo;
+      el.dlgTutti.checked = false;
+      let scelta = 'salta';
+      let tutti = false;
+      const alClic = (e) => {
+        const b = e.target.closest('button[data-scelta]');
+        if (!b) return;
+        scelta = b.dataset.scelta;
+        tutti = el.dlgTutti.checked;
+        dlg.close();
+      };
+      const alChiuso = () => {
+        dlg.removeEventListener('click', alClic);
+        dlg.removeEventListener('close', alChiuso);
+        resolve({ scelta, tutti });
+      };
+      dlg.addEventListener('click', alClic);
+      dlg.addEventListener('close', alChiuso);
+      dlg.showModal();
+    });
+  }
+
+  async function importaDaFile(file) {
+    let dati;
+    try {
+      dati = JSON.parse(await file.text());
+    } catch (_) {
+      alert('Il file scelto non è un file JSON valido.');
+      return;
+    }
+    const nuove = leggiCanzoniDaFile(dati);
+    if (nuove === null) {
+      alert('Il file non è un file di Quaderno Canzoni.');
+      return;
+    }
+    if (nuove.length === 0) {
+      alert('Il file non contiene canzoni da importare.');
+      return;
+    }
+
+    const chiave = (t) => normalizza(t).trim();
+    // titolo normalizzato -> canzone (esistente o già aggiunta in questa importazione)
+    const perTitolo = new Map();
+    canzoni.forEach((c) => { const k = chiave(c.titolo); if (!perTitolo.has(k)) perTitolo.set(k, c); });
+
+    let importate = 0, sostituite = 0, saltate = 0;
+    let sceltaFissa = null;
+    const ora = Date.now();
+
+    for (const n of nuove) {
+      const k = chiave(n.titolo);
+      const esistente = perTitolo.get(k);
+      let scelta = 'entrambe';
+      if (esistente) {
+        if (sceltaFissa) {
+          scelta = sceltaFissa;
+        } else {
+          const r = await chiediDuplicato(n.titolo.trim());
+          scelta = r.scelta;
+          if (r.tutti) sceltaFissa = scelta;
+        }
+      }
+      if (scelta === 'salta') { saltate++; continue; }
+      if (scelta === 'sostituisci') {
+        esistente.accordi = n.accordi;
+        esistente.testo = n.testo;
+        esistente.modificata = ora;
+        salvaTono(esistente.id, n.tono);
+        sostituite++;
+        continue;
+      }
+      const c = {
+        id: nuovoId(),
+        titolo: n.titolo,
+        testo: n.testo,
+        accordi: n.accordi,
+        creata: n.creata ?? ora,
+        modificata: n.modificata ?? ora,
+      };
+      canzoni.push(c);
+      if (n.tono) salvaTono(c.id, n.tono);
+      if (!perTitolo.has(k)) perTitolo.set(k, c);
+      importate++;
+    }
+
+    salva();
+    renderElenco();
+    const parti = [`Importate ${plurale(importate, 'canzone', 'canzoni')}`];
+    if (sostituite) parti.push(plurale(sostituite, 'sostituita', 'sostituite'));
+    if (saltate) parti.push(plurale(saltate, 'saltata', 'saltate'));
+    alert(parti.join(', ') + '.');
+  }
+
+  el.btnImporta.addEventListener('click', () => el.fileImporta.click());
+  el.fileImporta.addEventListener('change', async () => {
+    const file = el.fileImporta.files && el.fileImporta.files[0];
+    el.fileImporta.value = '';
+    if (file) await importaDaFile(file);
   });
 
   // ---------- Auto-scroll ----------

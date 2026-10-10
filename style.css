@@ -491,3 +491,52 @@ textarea {
   }
   .btn:active { transform: none; }
 }
+
+/* ---------- Importa ---------- */
+.dialogo {
+  width: min(92vw, 420px);
+  max-height: 90vh;
+  padding: 0;
+  border: 1px solid var(--linea);
+  border-radius: var(--raggio);
+  background: var(--superficie);
+  color: var(--inchiostro);
+  font-family: var(--font-testo);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+}
+.dialogo::backdrop { background: rgba(20, 14, 8, 0.55); }
+.dialogo-corpo {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 20px var(--gutter);
+}
+.dialogo-titolo {
+  margin: 0;
+  font-family: var(--font-titoli);
+  font-size: 1.25rem;
+}
+.dialogo-testo {
+  margin: 0;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+.dialogo-check {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: var(--tocco);
+  cursor: pointer;
+}
+.dialogo-check input {
+  flex: none;
+  width: 22px;
+  height: 22px;
+  accent-color: var(--accento);
+}
+.dialogo-azioni {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.dialogo-azioni .btn { width: 100%; min-height: var(--tocco); }
