@@ -6,6 +6,7 @@
 
   const el = {
     btnNuova: $('btn-nuova'),
+    btnEsporta: $('btn-esporta'),
     vistaElenco: $('vista-elenco'),
     vistaDettaglio: $('vista-dettaglio'),
     vistaForm: $('vista-form'),
@@ -147,6 +148,7 @@
   }
 
   function renderElenco() {
+    el.btnEsporta.disabled = canzoni.length === 0;
     const query = el.cerca.value;
     const q = normalizza(query.trim());
     const ordinate = [...canzoni].sort((a, b) =>
@@ -559,6 +561,63 @@
     }
     // In modalità form non si interviene per non perdere ciò che l'utente sta scrivendo.
   });
+
+  // ---------- Esporta ----------
+  // Esporta tutte le canzoni (con il tono scelto) in un file JSON.
+  function dataLocale() {
+    const d = new Date();
+    const p = (n) => String(n).padStart(2, '0');
+    return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+  }
+
+  function costruisciEsportazione() {
+    const toni = leggiTonoSalvati();
+    return {
+      app: 'quaderno-canzoni',
+      versione: 1,
+      esportato: new Date().toISOString(),
+      canzoni: canzoni.map((c) => {
+        const v = Number(toni[c.id]);
+        return {
+          titolo: c.titolo,
+          accordi: c.accordi,
+          testo: c.testo,
+          tono: Number.isInteger(v) ? v : 0,
+          creata: c.creata,
+          modificata: c.modificata,
+        };
+      }),
+    };
+  }
+
+  function scaricaFile(file) {
+    const url = URL.createObjectURL(file);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = file.name;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }
+
+  async function esporta() {
+    if (canzoni.length === 0) return;
+    const json = JSON.stringify(costruisciEsportazione(), null, 2);
+    const file = new File([json], `quaderno-canzoni-${dataLocale()}.json`, { type: 'application/json' });
+    if (navigator.canShare && navigator.canShare({ files: [file] })) {
+      try {
+        await navigator.share({ files: [file], title: 'Quaderno Canzoni' });
+        return;
+      } catch (err) {
+        if (err && err.name === 'AbortError') return; // annullato dall'utente
+        // altro errore: ripiega sul download
+      }
+    }
+    scaricaFile(file);
+  }
+
+  el.btnEsporta.addEventListener('click', esporta);
 
   // ---------- Auto-scroll ----------
   const CHIAVE_VEL = 'quaderno-canzoni-velocita';
