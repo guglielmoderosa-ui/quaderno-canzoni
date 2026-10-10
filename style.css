@@ -66,6 +66,8 @@ body {
   font-family: var(--font-testo);
   font-size: 16px;
   line-height: 1.5;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
   overflow-x: hidden;
   padding-left: env(safe-area-inset-left);
   padding-right: env(safe-area-inset-right);
@@ -330,7 +332,7 @@ pre.accordi {
   white-space: pre;
   overflow-wrap: normal;
   word-break: normal;
-  overflow-x: auto;
+  overflow-x: auto; /* mai tagliare in silenzio: se non entra, si scorre di lato */
   background: var(--accordi-bg);
   border-left: 3px solid var(--accento);
   border-radius: 0 var(--raggio) var(--raggio) 0;
@@ -342,13 +344,22 @@ pre.accordi {
 
 .accordi-intestazione {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
   gap: 8px;
   margin-bottom: 8px;
 }
 .accordi-intestazione .etichetta { margin: 0; }
-.accordi-scala { display: flex; gap: 4px; }
+.accordi-scala,
+.accordi-tono { display: flex; align-items: center; gap: 4px; }
+.accordi-tono { margin-left: auto; }
+.tono-valore {
+  min-width: 2.5ch;
+  text-align: center;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
 .btn-scala {
   min-width: var(--tocco);
   min-height: var(--tocco);
