@@ -11,6 +11,8 @@
   --accento-hover: #5f1721;
   --accento-testo: #fffaf0;
   --accordi-bg: rgba(122, 31, 43, 0.07);
+  --riga-accordi: #7a1f2b;
+  --riga-testo: #2a2118;
   --mark-bg: #f6e3a1;
   --pericolo: #a3261c;
   --focus: #1f5fbf;
@@ -38,6 +40,8 @@
     --accento-hover: #f0a4ae;
     --accento-testo: #2a1014;
     --accordi-bg: rgba(224, 138, 150, 0.1);
+    --riga-accordi: #e08a96;
+    --riga-testo: #efe6d3;
     --mark-bg: #6b5714;
     --pericolo: #f08a80;
     --focus: #8ab4ff;
@@ -322,11 +326,34 @@ pre.accordi {
   font-size: 1rem;
   line-height: 1.6;
   font-weight: 600;
-  color: var(--accento);
+  color: var(--riga-testo);
+  white-space: pre;
+  overflow-wrap: normal;
+  word-break: normal;
+  overflow-x: auto;
   background: var(--accordi-bg);
   border-left: 3px solid var(--accento);
   border-radius: 0 var(--raggio) var(--raggio) 0;
   padding: 12px 14px;
+}
+
+.riga-accordi { color: var(--riga-accordi); }
+.riga-testo { color: var(--riga-testo); font-weight: 400; }
+
+.accordi-intestazione {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+.accordi-intestazione .etichetta { margin: 0; }
+.accordi-scala { display: flex; gap: 4px; }
+.btn-scala {
+  min-width: var(--tocco);
+  min-height: var(--tocco);
+  padding: 0 10px;
+  font-weight: 700;
 }
 
 pre.testo {
