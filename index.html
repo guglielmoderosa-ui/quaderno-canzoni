@@ -38,7 +38,13 @@
       <article class="dettaglio">
         <h2 id="dettaglio-titolo" class="dettaglio-titolo"></h2>
         <div class="dettaglio-blocco">
-          <h3 class="etichetta">Accordi</h3>
+          <div class="accordi-intestazione">
+            <h3 class="etichetta">Accordi</h3>
+            <div class="accordi-scala" role="group" aria-label="Dimensione carattere accordi">
+              <button type="button" id="btn-accordi-meno" class="btn btn-ghost btn-scala" aria-label="Riduci carattere accordi">A&minus;</button>
+              <button type="button" id="btn-accordi-piu" class="btn btn-ghost btn-scala" aria-label="Ingrandisci carattere accordi">A+</button>
+            </div>
+          </div>
           <pre id="dettaglio-accordi" class="accordi"></pre>
         </div>
         <div class="dettaglio-blocco">
@@ -46,6 +52,12 @@
           <pre id="dettaglio-testo" class="testo"></pre>
         </div>
       </article>
+      <div id="barra-scorrimento" class="barra-scorrimento" role="group" aria-label="Scorrimento automatico">
+        <button id="btn-vel-meno" class="btn btn-secondary" type="button" aria-label="Rallenta">−</button>
+        <button id="btn-scorri" class="btn btn-primary" type="button" aria-label="Avvia scorrimento">▶</button>
+        <button id="btn-vel-piu" class="btn btn-secondary" type="button" aria-label="Accelera">+</button>
+        <span id="vel-indicatore" class="vel-indicatore" aria-live="polite">Velocità 3</span>
+      </div>
     </section>
 
     <!-- VISTA FORM (aggiungi / modifica) -->
